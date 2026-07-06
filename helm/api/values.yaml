@@ -1,0 +1,67 @@
+replicaCount: 1
+
+image:
+  repository: lks-api-app
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+  metricsPort: 9100
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+
+env:
+  - name: DB_HOST
+    valueFrom:
+      secretKeyRef:
+        name: lks-db-secret
+        key: host
+  - name: DB_PORT
+    value: "5432"
+  - name: DB_NAME
+    value: "lksdb"
+  - name: DB_USER
+    valueFrom:
+      secretKeyRef:
+        name: lks-db-secret
+        key: username
+  - name: DB_PASSWORD
+    value: "lks-super-secret-password-2026"
+  - name: REDIS_HOST
+    valueFrom:
+      configMapKeyRef:
+        name: lks-config
+        key: redis_host
+  - name: REDIS_PORT
+    value: "6379"
+  - name: KINESIS_STREAM
+    value: "lks-event-stream"
+  - name: PYTHONUNBUFFERED
+    value: "1"
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - lks-api
+          topologyKey: kubernetes.io/hostname

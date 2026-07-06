@@ -1,0 +1,50 @@
+replicaCount: 1
+
+image:
+  repository: lks-fe-app
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 3000
+
+resources:
+  requests:
+    cpu: 128m
+    memory: 256Mi
+  limits:
+    cpu: 256m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70
+
+env:
+  - name: PORT
+    value: "3000"
+  - name: API_URL
+    value: "http://lks-api:8080"
+  - name: GRAFANA_URL
+    valueFrom:
+      configMapKeyRef:
+        name: lks-config
+        key: grafana_url
+  - name: CLOUDWATCH_REGION
+    value: "us-east-1"
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - lks-fe
+          topologyKey: kubernetes.io/hostname

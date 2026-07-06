@@ -1,0 +1,156 @@
+---
+# Network Policy: tenant-alpha isolation
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: lks-tenant-isolation
+  namespace: tenant-alpha
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector: {}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - podSelector: {}
+    - to:
+        - ipBlock:
+            cidr: 10.0.5.0/24
+    - to:
+        - ipBlock:
+            cidr: 10.0.6.0/24
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 443
+---
+# Network Policy: tenant-beta isolation
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: lks-tenant-isolation
+  namespace: tenant-beta
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector: {}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - podSelector: {}
+    - to:
+        - ipBlock:
+            cidr: 10.0.5.0/24
+    - to:
+        - ipBlock:
+            cidr: 10.0.6.0/24
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 443
+---
+# Service: API in tenant-alpha
+apiVersion: v1
+kind: Service
+metadata:
+  name: lks-api
+  namespace: tenant-alpha
+  labels:
+    app: lks-api
+spec:
+  selector:
+    app: lks-api
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+    - name: metrics
+      port: 9100
+      targetPort: 9100
+  type: ClusterIP
+---
+# Service: Frontend in tenant-alpha
+apiVersion: v1
+kind: Service
+metadata:
+  name: lks-fe
+  namespace: tenant-alpha
+  labels:
+    app: lks-fe
+spec:
+  selector:
+    app: lks-fe
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+  type: ClusterIP
+---
+# Service: API in tenant-beta
+apiVersion: v1
+kind: Service
+metadata:
+  name: lks-api
+  namespace: tenant-beta
+  labels:
+    app: lks-api
+spec:
+  selector:
+    app: lks-api
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+    - name: metrics
+      port: 9100
+      targetPort: 9100
+  type: ClusterIP
+---
+# Service: Frontend in tenant-beta
+apiVersion: v1
+kind: Service
+metadata:
+  name: lks-fe
+  namespace: tenant-beta
+  labels:
+    app: lks-fe
+spec:
+  selector:
+    app: lks-fe
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+  type: ClusterIP
