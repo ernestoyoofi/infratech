@@ -13,19 +13,39 @@ Read the **shared module** for complete specifications of the 10 tasks to be com
 ## 🏗️ Architecture
 
 ```
-┌──────────── us-east-1 (Virginia) ────────────┐    ┌──── us-west-2 (Oregon) ────┐
-│                                                │    │                             │
-│  VPC App (10.10.0.0/16)                       │    │  VPC DR (10.30.0.0/16)      │
-│    Public:  ALB, IGW, NAT                     │    │    Aurora DR Replica         │
-│    Private: EKS + Grafana (ECS)               │    │    S3 Cross-Region Repl.    │
-│                                                │    │    DR Failover Lambda       │
-│          ↕ VPC Peering                        │    │                             │
-│                                                │    │                             │
-│  VPC Data (10.20.0.0/16)                      │    │                             │
-│    Isolated: Aurora PostgreSQL + Redis         │    │                             │
-│                                                │    │                             │
-│  [TGW: cloudtech-tgw-2026] ───── TGW Peering ─────── [TGW: cloudtech-tgw-secondary]
-└────────────────────────────────────────────────┘    └─────────────────────────────┘
+┌─────────────────────────────────────────────┐    ┌─────────────────────────────────────────────┐
+│       us-east-1 (Virginia)                  │    │       us-west-2 (Oregon)                    │
+├─────────────────────────────────────────────┤    ├─────────────────────────────────────────────┤
+│                                             │    │                                             │
+│  ┌─────────────────────────────────────┐   │    │  ┌─────────────────────────────────────┐   │
+│  │ VPC App (10.10.0.0/16)              │   │    │  │ VPC DR (10.30.0.0/16)               │   │
+│  │                                     │   │    │  │                                     │   │
+│  │  Public Subnet:                     │   │    │  │  • Aurora DR Replica                │   │
+│  │    • ALB                            │   │    │  │  • S3 Cross-Region Replication      │   │
+│  │    • Internet Gateway               │   │    │  │  • DR Failover Lambda               │   │
+│  │    • NAT Gateway                    │   │    │  │                                     │   │
+│  │                                     │   │    │  └─────────────────────────────────────┘   │
+│  │  Private Subnet:                    │   │    │                                             │
+│  │    • EKS Cluster                    │   │    │                                             │
+│  │    • Grafana (ECS Fargate)          │   │    │                                             │
+│  └─────────────────────────────────────┘   │    │                                             │
+│                                             │    │                                             │
+│              ↕ VPC Peering                  │    │                                             │
+│                                             │    │                                             │
+│  ┌─────────────────────────────────────┐   │    │                                             │
+│  │ VPC Data (10.20.0.0/16)             │   │    │                                             │
+│  │                                     │   │    │                                             │
+│  │  Isolated Subnet:                   │   │    │                                             │
+│  │    • Aurora PostgreSQL              │   │    │                                             │
+│  │    • Redis (ElastiCache)            │   │    │                                             │
+│  └─────────────────────────────────────┘   │    │                                             │
+│                                             │    │                                             │
+│  ┌─────────────────────────────────────┐   │    │  ┌─────────────────────────────────────┐   │
+│  │ Transit Gateway                     │───┼────┼──│ Transit Gateway                     │   │
+│  │ cloudtech-tgw-2026                  │   │    │  │ cloudtech-tgw-secondary             │   │
+│  └─────────────────────────────────────┘   │    │  └─────────────────────────────────────┘   │
+│                                             │    │                                             │
+└─────────────────────────────────────────────┘    └─────────────────────────────────────────────┘
 ```
 
 ---
