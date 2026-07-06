@@ -133,4 +133,4 @@ terraform apply ...
 ---
 
 *LKS Nasional 2026 · Cloud Computing · Infrastructure Automation*
-*© 2026 Direktorat SMK — Cloud Computing Competition*
+*© 2026 Cloud Computing Competition*
