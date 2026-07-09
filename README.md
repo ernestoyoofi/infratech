@@ -12,40 +12,79 @@ Read the **shared module** for complete specifications of the 10 tasks to be com
 
 ## 🏗️ Architecture
 
+**CloudTech 2026 — Multi-Tenant SaaS Platform (Dual-VPC Architecture)**
+
 ```
-┌─────────────────────────────────────────────┐    ┌─────────────────────────────────────────────┐
-│       us-east-1 (Virginia)                  │    │       us-west-2 (Oregon)                    │
-├─────────────────────────────────────────────┤    ├─────────────────────────────────────────────┤
-│                                             │    │                                             │
-│  ┌─────────────────────────────────────┐   │    │  ┌─────────────────────────────────────┐   │
-│  │ VPC App (10.10.0.0/16)              │   │    │  │ VPC DR (10.30.0.0/16)               │   │
-│  │                                     │   │    │  │                                     │   │
-│  │  Public Subnet:                     │   │    │  │  • Aurora DR Replica                │   │
-│  │    • ALB                            │   │    │  │  • S3 Cross-Region Replication      │   │
-│  │    • Internet Gateway               │   │    │  │  • DR Failover Lambda               │   │
-│  │    • NAT Gateway                    │   │    │  │                                     │   │
-│  │                                     │   │    │  └─────────────────────────────────────┘   │
-│  │  Private Subnet:                    │   │    │                                             │
-│  │    • EKS Cluster                    │   │    │                                             │
-│  │    • Grafana (ECS Fargate)          │   │    │                                             │
-│  └─────────────────────────────────────┘   │    │                                             │
-│                                             │    │                                             │
-│              ↕ VPC Peering                  │    │                                             │
-│                                             │    │                                             │
-│  ┌─────────────────────────────────────┐   │    │                                             │
-│  │ VPC Data (10.20.0.0/16)             │   │    │                                             │
-│  │                                     │   │    │                                             │
-│  │  Isolated Subnet:                   │   │    │                                             │
-│  │    • Aurora PostgreSQL              │   │    │                                             │
-│  │    • Redis (ElastiCache)            │   │    │                                             │
-│  └─────────────────────────────────────┘   │    │                                             │
-│                                             │    │                                             │
-│  ┌─────────────────────────────────────┐   │    │  ┌─────────────────────────────────────┐   │
-│  │ Transit Gateway                     │───┼────┼──│ Transit Gateway                     │   │
-│  │ cloudtech-tgw-2026                  │   │    │  │ cloudtech-tgw-secondary             │   │
-│  └─────────────────────────────────────┘   │    │  └─────────────────────────────────────┘   │
-│                                             │    │                                             │
-└─────────────────────────────────────────────┘    └─────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ AWS Cloud                                                                                                   │
+│                                                                                                             │
+│  ╔═══════════════════════════════════════════════════════════════════════════════════════════════════╗   │
+│  ║ Region: us-east-1 (Virginia) — Application + Data + Monitoring                                       ║   │
+│  ║                                                                                                       ║   │
+│  ║  ┌───────────────────────────────────────────────────┐        ┌────────────────────────────────┐   ║   │
+│  ║  │ VPC Application — cloudtech-app (10.10.0.0/16)     │        │ VPC Data — cloudtech-data       │   ║   │
+│  ║  │                                                   │        │ (10.20.0.0/16)                  │   ║   │
+│  ║  │  Public Subnets (10.10.1.0/24, 10.10.2.0/24)      │        │                                 │   ║   │
+│  ║  │    ALB cloudtech-alb (80/443)                     │        │  Isolated Subnets               │   ║   │
+│  ║  │        → Internet Gateway → NAT Gateway           │        │  (10.20.1.0/24, 10.20.2.0/24)   │   ║   │
+│  ║  │                                                   │        │    • Aurora PostgreSQL 16.4     │   ║   │
+│  ║  │  Private Subnets (10.10.10.0/24, 10.10.11.0/24)   │  VPC   │      Multi-AZ (2 instances)     │   ║   │
+│  ║  │   ┌─────────────────────────────────────────┐     │ Peering│      cloudtech-aurora-cluster   │   ║   │
+│  ║  │   │ EKS Cluster: cloudtech-eks-cluster v1.31 │◄───┼───────►│    • ElastiCache Redis 7.1      │   ║   │
+│  ║  │   │  Namespace tenant-alpha:                │     │  DNS   │      cloudtech-redis            │   ║   │
+│  ║  │   │    cloudtech-api (8080, metrics 9100)   │     │ enabled└────────────────────────────────┘   ║   │
+│  ║  │   │    cloudtech-fe  (3000)                 │     │                                             ║   │
+│  ║  │   │  Namespace tenant-beta:                 │     │  ┌──────────────────────────────────────┐   ║   │
+│  ║  │   │    cloudtech-api (8080, metrics 9100)   │     │  │ Event-Driven Pipeline                │   ║   │
+│  ║  │   │    cloudtech-fe  (3000)                 │     │  │  Kinesis cloudtech-event-stream      │   ║   │
+│  ║  │   │  • NetworkPolicy (Tenant Isolation)     │     │  │    (2 shards, 24h)                   │   ║   │
+│  ║  │   │  • Pod Security Standard: restricted    │     │  │      ↓                               │   ║   │
+│  ║  │   │  • HPA (min 2, max 6, CPU 70%)          │     │  │  Lambda cloudtech-event-processor    │   ║   │
+│  ║  │   └─────────────────────────────────────────┘     │  │    (Python 3.13, 512MB)              │   ║   │
+│  ║  │   ┌─────────────────────────────────────────┐     │  │      ↓                               │   ║   │
+│  ║  │   │ ECS Fargate (same VPC)                  │     │  │  EventBridge cloudtech-saas-events   │   ║   │
+│  ║  │   │  Grafana OSS cloudtech-grafana-service  │     │  │      ├→ SNS cloudtech-user-events    │   ║   │
+│  ║  │   │  Private IP (10.10.x.x)                 │     │  │      ├→ SQS cloudtech-event-queue    │   ║   │
+│  ║  │   │  admin / cloudtech2026                  │     │  │      │     ↓ SQS DLQ cloudtech-dlq   │   ║   │
+│  ║  │   └─────────────────────────────────────────┘     │  │      └→ DynamoDB cloudtech-audit-log │   ║   │
+│  ║  └───────────────────────────────────────────────────┘  │        (TTL: expiresAt)              │   ║   │
+│  ║       ▲                                                  └──────────────────────────────────────┘   ║   │
+│  ║       │ Internet → ALB                                                                               ║   │
+│  ║                                                                                                       ║   │
+│  ║  ┌──────────────────────┐  ┌──────────────────────────┐  ┌────────────────────┐  ┌──────────────┐  ║   │
+│  ║  │ ECR Repositories     │  │ CodeDeploy               │  │ CloudWatch Alarms  │  │ Transit      │  ║   │
+│  ║  │  cloudtech-api-app   │  │  cloudtech-eks-app       │  │  + Container       │  │ Gateway      │  ║   │
+│  ║  │  cloudtech-fe-app    │  │  Blue/Green Canary       │  │  Insights          │  │ cloudtech-   │  ║   │
+│  ║  │                      │  │  10% → 100% (5 min)      │  │                    │  │ tgw-2026     │  ║   │
+│  ║  │                      │  │  Trigger: manual (CLI)   │  │                    │  │              │  ║   │
+│  ║  └──────────────────────┘  └────────────┬─────────────┘  └────────────────────┘  └──────┬───────┘  ║   │
+│  ║                                          │ deploy (Blue/Green) to EKS                    │          ║   │
+│  ║                                          └──────────────────────────────────────────────┼──▶ EKS   ║   │
+│  ║                                                                                          │          ║   │
+│  ╚═══════════════════════════════════════════════════════════════════════════════════════════╪═══════╝   │
+│                                                                                                │           │
+│                                          ┌──────────────────────┐                             │           │
+│                                          │ TGW Peering          │◄────────────────────────────┘           │
+│                                          │ Cross-Region         │                                          │
+│                                          └──────────┬───────────┘                                          │
+│                                                     │                                                      │
+│  ╔══════════════════════════════════════════════════╪══════════════════════════════════════════════════╗ │
+│  ║ Region: us-west-2 (Oregon) — DR Only (No Application Workload)                                        ║ │
+│  ║                                                    ▼                                                   ║ │
+│  ║  ┌──────────────────────┐   ┌─────────────────────────┐   ┌──────────────────────────────────────┐   ║ │
+│  ║  │ Transit Gateway      │   │ DR Infrastructure       │   │ Disaster Recovery                    │   ║ │
+│  ║  │ cloudtech-tgw-       │   │  VPC DR — cloudtech-mon │   │  • Aurora Global DB Replica          │   ║ │
+│  ║  │ secondary            │   │  (10.30.0.0/16)         │   │  • S3 cloudtech-assets-dr            │   ║ │
+│  ║  └──────────────────────┘   │  Reserved for DR        │   │    Cross-Region Replication          │   ║ │
+│  ║                             └─────────────────────────┘   └──────────────────────────────────────┘   ║ │
+│  ║                                                                                                       ║ │
+│  ║  DR Automation:                                                                                       ║ │
+│  ║   CloudWatch Alarm (cloudtech-primary-health-alarm) → EventBridge (cloudtech-dr-failover-trigger)     ║ │
+│  ║     → Lambda (cloudtech-dr-failover) → SNS (cloudtech-dr-alerts)                                       ║ │
+│  ╚═══════════════════════════════════════════════════════════════════════════════════════════════════╝   │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+Legend:  →  Traffic Flow    ┈┈►  Cross-VPC / Peering    ▪▪►  Replication / Failover
 ```
 
 ---
@@ -54,7 +93,6 @@ Read the **shared module** for complete specifications of the 10 tasks to be com
 
 ```
 .
-├── .github/workflows/        # CI/CD Pipeline (7 jobs)
 ├── app/
 │   ├── api.py               # Flask REST API (:8080) + Prometheus (:9100)
 │   ├── frontend.py          # Flask Frontend Dashboard (:3000)
