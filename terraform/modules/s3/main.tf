@@ -10,8 +10,14 @@ variable "student_name" {
   default = "peserta"
 }
 
+# S3 bucket names must be globally unique across ALL AWS accounts, not just
+# within this account. Using only resource_prefix + student_name is not
+# enough (collides with leftover buckets from previous deploys or other
+# students using the same default name) — append the account ID as well.
+data "aws_caller_identity" "current" {}
+
 resource "aws_s3_bucket" "assets" {
-  bucket        = "${var.resource_prefix}-assets-${var.student_name}-2026"
+  bucket        = "${var.resource_prefix}-assets-${var.student_name}-${data.aws_caller_identity.current.account_id}"
   force_destroy = true
   tags          = { Name = "${var.resource_prefix}-assets-${var.student_name}" }
 }
