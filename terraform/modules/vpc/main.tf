@@ -161,7 +161,7 @@ resource "aws_route" "private_nat" {
   count                  = local.has_public ? 0 : 1
   route_table_id         = aws_route_table.private.id
   destination_cidr_block = "0.0.0.0/0"
-  gateway_id             = aws_nat_gateway.private_gateway[0].id
+  nat_gateway_id         = aws_nat_gateway.private_gateway
 }
 
 # Outputs
