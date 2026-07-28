@@ -8,3 +8,5 @@ LKS_Nasional_2026_Cloud_Computing.docx
 tasklks.docx
 tasklks.md
 .vscode/
+.terraform
+.terraform.lock.hcl
