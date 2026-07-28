@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 # BUG: PORT default is 5000 — should be 3000 (Dockerfile EXPOSE is 3000)
 API_URL = os.getenv('API_URL', 'http://localhost:8080')
-PORT = int(os.getenv('PORT', '5000'))
+PORT = int(os.getenv('PORT', '3000')) # Set 5000 > 3000
 GRAFANA_URL = os.getenv('GRAFANA_URL', 'http://localhost:3000')
 CLOUDWATCH_REGION = os.getenv('CLOUDWATCH_REGION', 'us-east-1')
 
