@@ -40,13 +40,14 @@ resource "aws_ec2_transit_gateway_peering_attachment" "cross_region" {
   tags                    = { Name = "${var.resource_prefix}-tgw-peering-cross-region" }
 }
 
-# MISSING: Routes in monitoring VPC to reach primary region via TGW
+# MISSING ?: Routes in monitoring VPC to reach primary region via TGW
 # peserta must create aws_route for each route_table + peer_vpc_cidr
 
 resource "aws_route" "mon_vpc_to_tgw" {
   count = var.route_table_count
   route_table_id = var.route_table_ids[var.route_table_count]
   destination_cidr_block = var.peer_vpc_cidrs[var.route_table_count]
+  transit_gateway_id = aws_ec2_transit_gateway.secondary.id
 }
 
 output "secondary_tgw_id" { value = aws_ec2_transit_gateway.secondary.id }

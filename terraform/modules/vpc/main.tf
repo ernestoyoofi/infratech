@@ -81,13 +81,14 @@ resource "aws_eip" "nat" {
   depends_on = [aws_internet_gateway.main]
 }
 
-# MISSING -: NAT Gateway resource (peserta must create this)
+# MISSING [!]: NAT Gateway resource (peserta must create this)
 # Required: allocation_id from aws_eip.nat[0], subnet_id from first public subnet
 # Tag: "${var.resource_prefix}-nat"
 
 resource "aws_nat_gateway" "private_gateway" {
+  count  = local.has_public ? 1 : 0
   allocation_id = aws_eip.nat[0].id
-  subnet_id     = aws_subnet.all[0].id
+  subnet_id     = local.first_public_id
 
   tags = {
     Name ="${var.resource_prefix}-nat"
@@ -153,14 +154,14 @@ resource "aws_route" "public_gateway" {
   gateway_id             = aws_internet_gateway.main[0].id
 }
 
-# MISSING -: Route for private subnets to reach internet via NAT Gateway
+# MISSING [!]: Route for private subnets to reach internet via NAT Gateway
 # peserta must create: aws_route pointing private route table to NAT gateway
 # resource "aws_route" "private_nat" { ... }
 resource "aws_route" "private_nat" {
   count                  = local.has_public ? 0 : 1
   route_table_id         = aws_route_table.private.id
   destination_cidr_block = "0.0.0.0/0"
-  gateway_id             = aws_internet_gateway.main[0].id
+  gateway_id             = aws_nat_gateway.private_gateway[0].id
 }
 
 # Outputs

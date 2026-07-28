@@ -38,6 +38,13 @@ resource "aws_ec2_transit_gateway_vpc_attachment" "this" {
 # MISSING: Routes in VPC route tables pointing to remote CIDRs via TGW
 # peserta must create aws_route resources for each route_table + peer_vpc_cidr combination
 
+resource "aws_route" "pointing_to_tgw" {
+  count = var.route_table_count
+  route_table_id = var.route_table_ids[var.route_table_count]
+  destination_cidr_block = var.peer_vpc_cidrs[0]
+  transit_gateway_id = aws_ec2_transit_gateway.main.id
+}
+
 output "tgw_id" { value = aws_ec2_transit_gateway.main.id }
 output "tgw_arn" { value = aws_ec2_transit_gateway.main.arn }
 output "tgw_attachment_id" { value = aws_ec2_transit_gateway_vpc_attachment.this.id }

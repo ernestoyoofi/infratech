@@ -45,15 +45,17 @@ resource "aws_vpc_peering_connection" "app_to_data" {
 resource "aws_route" "vpc_app_to_vpc_data" {
   count = var.app_route_table_count
   route_table_id = var.app_route_table_ids[var.app_route_table_count]
-  destination_prefix_list_id = var.data_route_table_ids[var.app_route_table_count]
+  destination_cidr_block = var.requester_cidr
+  vpc_peering_connection_id = aws_vpc_peering_connection.app_to_data.id
 }
 
 # MISSING: Routes for Data VPC -> App VPC (peserta must create these)
 
 resource "aws_route" "vpc_data_to_vpc_app" {
   count = var.app_route_table_count
-  route_table_id = var.data_route_table_ids[var.app_route_table_count]
-  destination_prefix_list_id = var.app_route_table_ids[var.app_route_table_count]
+  route_table_id = var.data_route_table_ids[var.data_route_table_count]
+  destination_cidr_block = var.accepter_cidr
+  vpc_peering_connection_id = aws_vpc_peering_connection.app_to_data.id
 }
 
 output "peering_connection_id" {
