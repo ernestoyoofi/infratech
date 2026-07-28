@@ -158,10 +158,10 @@ resource "aws_route" "public_gateway" {
 # peserta must create: aws_route pointing private route table to NAT gateway
 # resource "aws_route" "private_nat" { ... }
 resource "aws_route" "private_nat" {
-  count                  = local.has_public ? 0 : 1
+  count                  = local.has_public ? 1 : 0
   route_table_id         = aws_route_table.private.id
   destination_cidr_block = "0.0.0.0/0"
-  nat_gateway_id         = aws_nat_gateway.private_gateway
+  nat_gateway_id         = aws_nat_gateway.private_gateway[0].id
 }
 
 # Outputs
