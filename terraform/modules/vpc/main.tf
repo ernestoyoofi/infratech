@@ -85,6 +85,17 @@ resource "aws_eip" "nat" {
 # Required: allocation_id from aws_eip.nat[0], subnet_id from first public subnet
 # Tag: "${var.resource_prefix}-nat"
 
+resource "aws_nat_gateway" "" {
+  allocation_id = aws_eip.nat.id
+  subnet_id     = 
+
+  tags = {
+    Name ="${var.resource_prefix}-nat"
+  }
+
+  depends_on = [aws_internet_gateway.main]
+}
+
 # Route tables
 resource "aws_route_table" "public" {
   count  = local.has_public ? 1 : 0
@@ -145,6 +156,9 @@ resource "aws_route" "public_gateway" {
 # MISSING: Route for private subnets to reach internet via NAT Gateway
 # peserta must create: aws_route pointing private route table to NAT gateway
 # resource "aws_route" "private_nat" { ... }
+resource "aws_route" "private_nat" {
+
+}
 
 # Outputs
 output "vpc_id" {
